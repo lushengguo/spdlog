@@ -341,15 +341,14 @@ template <typename CodeUnit> struct codecvt_result {
 };
 
 template <typename CodeUnit>
-void write_codecvt(codecvt_result<CodeUnit>& out, string_view in_buf,
-                   const std::locale& loc) {
+void write_codecvt(codecvt_result<CodeUnit>& out, string_view in_buf, const std::locale& location) {
 #if FMT_CLANG_VERSION
 #  pragma clang diagnostic push
 #  pragma clang diagnostic ignored "-Wdeprecated"
-  auto& f = std::use_facet<std::codecvt<CodeUnit, char, std::mbstate_t>>(loc);
-#  pragma clang diagnostic pop
+    auto& f = std::use_facet<std::codecvt<CodeUnit, char, std::mbstate_t>>(location);
+    #pragma clang diagnostic pop
 #else
-  auto& f = std::use_facet<std::codecvt<CodeUnit, char, std::mbstate_t>>(loc);
+    auto& f = std::use_facet<std::codecvt<CodeUnit, char, std::mbstate_t>>(location);
 #endif
   auto mb = std::mbstate_t();
   const char* from_next = nullptr;
@@ -360,11 +359,10 @@ void write_codecvt(codecvt_result<CodeUnit>& out, string_view in_buf,
 }
 
 template <typename OutputIt>
-auto write_encoded_tm_str(OutputIt out, string_view in, const std::locale& loc)
-    -> OutputIt {
-  if (detail::is_utf8() && loc != get_classic_locale()) {
-    // char16_t and char32_t codecvts are broken in MSVC (linkage errors) and
-    // gcc-4.
+auto write_encoded_tm_str(OutputIt out, string_view in, const std::locale& location) -> OutputIt {
+    if (detail::is_utf8() && location != get_classic_locale()) {
+        // char16_t and char32_t codecvts are broken in MSVC (linkage errors) and
+        // gcc-4.
 #if FMT_MSC_VERSION != 0 || \
     (defined(__GLIBCXX__) && !defined(_GLIBCXX_USE_DUAL_ABI))
     // The _GLIBCXX_USE_DUAL_ABI macro is always defined in libstdc++ from gcc-5
@@ -376,60 +374,59 @@ auto write_encoded_tm_str(OutputIt out, string_view in, const std::locale& loc)
 
     using unit_t = codecvt_result<code_unit>;
     unit_t unit;
-    write_codecvt(unit, in, loc);
+    write_codecvt(unit, in, location);
     // In UTF-8 is used one to four one-byte code units.
     auto u =
         to_utf8<code_unit, basic_memory_buffer<char, unit_t::max_size * 4>>();
     if (!u.convert({unit.buf, to_unsigned(unit.end - unit.buf)}))
       FMT_THROW(format_error("failed to format time"));
     return copy_str<char>(u.c_str(), u.c_str() + u.size(), out);
-  }
+    }
   return copy_str<char>(in.data(), in.data() + in.size(), out);
 }
 
-template <typename Char, typename OutputIt,
-          FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
-auto write_tm_str(OutputIt out, string_view sv, const std::locale& loc)
-    -> OutputIt {
-  codecvt_result<Char> unit;
-  write_codecvt(unit, sv, loc);
-  return copy_str<Char>(unit.buf, unit.end, out);
+template <typename Char, typename OutputIt, FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
+auto write_tm_str(OutputIt out, string_view sv, const std::locale& location) -> OutputIt {
+    codecvt_result<Char> unit;
+    write_codecvt(unit, sv, location);
+    return copy_str<Char>(unit.buf, unit.end, out);
 }
 
-template <typename Char, typename OutputIt,
-          FMT_ENABLE_IF(std::is_same<Char, char>::value)>
-auto write_tm_str(OutputIt out, string_view sv, const std::locale& loc)
-    -> OutputIt {
-  return write_encoded_tm_str(out, sv, loc);
+template <typename Char, typename OutputIt, FMT_ENABLE_IF(std::is_same<Char, char>::value)>
+auto write_tm_str(OutputIt out, string_view sv, const std::locale& location) -> OutputIt {
+    return write_encoded_tm_str(out, sv, location);
 }
 
 template <typename Char>
-inline void do_write(buffer<Char>& buf, const std::tm& time,
-                     const std::locale& loc, char format, char modifier) {
-  auto&& format_buf = formatbuf<std::basic_streambuf<Char>>(buf);
-  auto&& os = std::basic_ostream<Char>(&format_buf);
-  os.imbue(loc);
-  const auto& facet = std::use_facet<std::time_put<Char>>(loc);
-  auto end = facet.put(os, os, Char(' '), &time, format, modifier);
-  if (end.failed()) FMT_THROW(format_error("failed to format time"));
+inline void do_write(buffer<Char>& buf,
+                     const std::tm& time,
+                     const std::locale& location,
+                     char format,
+                     char modifier) {
+    auto&& format_buf = formatbuf<std::basic_streambuf<Char>>(buf);
+    auto&& os = std::basic_ostream<Char>(&format_buf);
+    os.imbue(location);
+    const auto& facet = std::use_facet<std::time_put<Char>>(location);
+    auto end = facet.put(os, os, Char(' '), &time, format, modifier);
+    if (end.failed()) FMT_THROW(format_error("failed to format time"));
 }
 
-template <typename Char, typename OutputIt,
-          FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
-auto write(OutputIt out, const std::tm& time, const std::locale& loc,
-           char format, char modifier = 0) -> OutputIt {
-  auto&& buf = get_buffer<Char>(out);
-  do_write<Char>(buf, time, loc, format, modifier);
-  return get_iterator(buf, out);
+template <typename Char, typename OutputIt, FMT_ENABLE_IF(!std::is_same<Char, char>::value)>
+auto write(
+    OutputIt out, const std::tm& time, const std::locale& location, char format, char modifier = 0)
+    -> OutputIt {
+    auto&& buf = get_buffer<Char>(out);
+    do_write<Char>(buf, time, location, format, modifier);
+    return get_iterator(buf, out);
 }
 
-template <typename Char, typename OutputIt,
-          FMT_ENABLE_IF(std::is_same<Char, char>::value)>
-auto write(OutputIt out, const std::tm& time, const std::locale& loc,
-           char format, char modifier = 0) -> OutputIt {
-  auto&& buf = basic_memory_buffer<Char>();
-  do_write<char>(buf, time, loc, format, modifier);
-  return write_encoded_tm_str(out, string_view(buf.data(), buf.size()), loc);
+template <typename Char, typename OutputIt, FMT_ENABLE_IF(std::is_same<Char, char>::value)>
+auto write(
+    OutputIt out, const std::tm& time, const std::locale& location, char format, char modifier = 0)
+    -> OutputIt {
+    auto&& buf = basic_memory_buffer<Char>();
+    do_write<char>(buf, time, location, format, modifier);
+    return write_encoded_tm_str(out, string_view(buf.data(), buf.size()), location);
 }
 
 template <typename Rep1, typename Rep2>
@@ -1353,18 +1350,20 @@ class tm_writer {
   }
 
  public:
-  tm_writer(const std::locale& loc, OutputIt out, const std::tm& tm,
-            const Duration* subsecs = nullptr)
-      : loc_(loc),
-        is_classic_(loc_ == get_classic_locale()),
-        out_(out),
-        subsecs_(subsecs),
-        tm_(tm) {}
+     tm_writer(const std::locale& location,
+               OutputIt out,
+               const std::tm& tm,
+               const Duration* subsecs = nullptr)
+         : loc_(location),
+           is_classic_(loc_ == get_classic_locale()),
+           out_(out),
+           subsecs_(subsecs),
+           tm_(tm) {}
 
-  auto out() const -> OutputIt { return out_; }
+     auto out() const -> OutputIt { return out_; }
 
-  FMT_CONSTEXPR void on_text(const Char* begin, const Char* end) {
-    out_ = copy_str<Char>(begin, end, out_);
+     FMT_CONSTEXPR void on_text(const Char* begin, const Char* end) {
+         out_ = copy_str<Char>(begin, end, out_);
   }
 
   void on_abbr_weekday() {
@@ -1743,10 +1742,10 @@ class get_locale {
   bool has_locale_ = false;
 
  public:
-  get_locale(bool localized, locale_ref loc) : has_locale_(localized) {
-    if (localized)
-      ::new (&locale_) std::locale(loc.template get<std::locale>());
-  }
+     get_locale(bool localized, locale_ref location)
+         : has_locale_(localized) {
+         if (localized) ::new (&locale_) std::locale(location.template get<std::locale>());
+     }
   ~get_locale() {
     if (has_locale_) locale_.~locale();
   }
@@ -1859,8 +1858,8 @@ struct chrono_formatter {
   template <typename Callback, typename... Args>
   void format_tm(const tm& time, Callback cb, Args... args) {
     if (isnan(val)) return write_nan();
-    get_locale loc(localized, context.locale());
-    auto w = tm_writer_type(loc, out, time);
+    get_locale location(localized, context.locale());
+    auto w = tm_writer_type(location, out, time);
     (w.*cb)(args...);
     out = w.out();
   }
@@ -2033,8 +2032,8 @@ template <typename Char> struct formatter<weekday, Char> {
   auto format(weekday wd, FormatContext& ctx) const -> decltype(ctx.out()) {
     auto time = std::tm();
     time.tm_wday = static_cast<int>(wd.c_encoding());
-    detail::get_locale loc(localized, ctx.locale());
-    auto w = detail::tm_writer<decltype(ctx.out()), Char>(loc, ctx.out(), time);
+    detail::get_locale location(localized, ctx.locale());
+    auto w = detail::tm_writer<decltype(ctx.out()), Char>(location, ctx.out(), time);
     w.on_abbr_weekday();
     return w.out();
   }
@@ -2201,9 +2200,8 @@ template <typename Char> struct formatter<std::tm, Char> {
                                                        ctx);
 
     auto loc_ref = ctx.locale();
-    detail::get_locale loc(static_cast<bool>(loc_ref), loc_ref);
-    auto w =
-        detail::tm_writer<decltype(out), Char, Duration>(loc, out, tm, subsecs);
+    detail::get_locale location(static_cast<bool>(loc_ref), loc_ref);
+    auto w = detail::tm_writer<decltype(out), Char, Duration>(location, out, tm, subsecs);
     detail::parse_chrono_format(format_str_.begin(), format_str_.end(), w);
     return detail::write(
         ctx.out(), basic_string_view<Char>(buf.data(), buf.size()), specs);

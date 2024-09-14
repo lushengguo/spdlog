@@ -13,18 +13,18 @@ namespace utils {
 
 template <typename T>
 inline std::string format(const T &value) {
-    static std::locale loc("");
+    static std::locale location("");
     std::stringstream ss;
-    ss.imbue(loc);
+    ss.imbue(location);
     ss << value;
     return ss.str();
 }
 
 template <>
 inline std::string format(const double &value) {
-    static std::locale loc("");
+    static std::locale location("");
     std::stringstream ss;
-    ss.imbue(loc);
+    ss.imbue(location);
     ss << std::fixed << std::setprecision(1) << value;
     return ss.str();
 }

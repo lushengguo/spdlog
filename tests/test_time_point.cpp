@@ -6,7 +6,7 @@ TEST_CASE("time_point1", "[time_point log_msg]") {
     std::shared_ptr<spdlog::sinks::test_sink_st> test_sink(new spdlog::sinks::test_sink_st);
     spdlog::logger logger("test-time_point", test_sink);
 
-    spdlog::source_loc source{};
+    spdlog::log_source_location source{};
     std::chrono::system_clock::time_point tp{std::chrono::system_clock::now()};
     test_sink->set_pattern("%T.%F");  // interested in the time_point
 

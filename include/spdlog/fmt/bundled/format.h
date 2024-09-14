@@ -1073,7 +1073,7 @@ template <typename Locale> class format_facet : public Locale::facet {
  public:
   static FMT_API typename Locale::id id;
 
-  explicit format_facet(Locale& loc);
+  explicit format_facet(Locale& location);
   explicit format_facet(string_view sep = "",
                         std::initializer_list<unsigned char> g = {3},
                         std::string decimal_point = ".")
@@ -1257,24 +1257,26 @@ template <typename Char> struct thousands_sep_result {
 };
 
 template <typename Char>
-FMT_API auto thousands_sep_impl(locale_ref loc) -> thousands_sep_result<Char>;
+FMT_API auto thousands_sep_impl(locale_ref location) -> thousands_sep_result<Char>;
 template <typename Char>
-inline auto thousands_sep(locale_ref loc) -> thousands_sep_result<Char> {
-  auto result = thousands_sep_impl<char>(loc);
-  return {result.grouping, Char(result.thousands_sep)};
+inline auto thousands_sep(locale_ref location) -> thousands_sep_result<Char> {
+    auto result = thousands_sep_impl<char>(location);
+    return {result.grouping, Char(result.thousands_sep)};
 }
 template <>
-inline auto thousands_sep(locale_ref loc) -> thousands_sep_result<wchar_t> {
-  return thousands_sep_impl<wchar_t>(loc);
+inline auto thousands_sep(locale_ref location) -> thousands_sep_result<wchar_t> {
+    return thousands_sep_impl<wchar_t>(location);
 }
 
 template <typename Char>
-FMT_API auto decimal_point_impl(locale_ref loc) -> Char;
-template <typename Char> inline auto decimal_point(locale_ref loc) -> Char {
-  return Char(decimal_point_impl<char>(loc));
+FMT_API auto decimal_point_impl(locale_ref location) -> Char;
+template <typename Char>
+inline auto decimal_point(locale_ref location) -> Char {
+    return Char(decimal_point_impl<char>(location));
 }
-template <> inline auto decimal_point(locale_ref loc) -> wchar_t {
-  return decimal_point_impl<wchar_t>(loc);
+template <>
+inline auto decimal_point(locale_ref location) -> wchar_t {
+    return decimal_point_impl<wchar_t>(location);
 }
 
 // Compares two characters for equality.
@@ -1945,15 +1947,14 @@ FMT_CONSTEXPR auto write_char(OutputIt out, Char value,
   });
 }
 template <typename Char, typename OutputIt>
-FMT_CONSTEXPR auto write(OutputIt out, Char value,
-                         const format_specs<Char>& specs, locale_ref loc = {})
-    -> OutputIt {
-  // char is formatted as unsigned char for consistency across platforms.
-  using unsigned_type =
-      conditional_t<std::is_same<Char, char>::value, unsigned char, unsigned>;
-  return check_char_specs(specs)
-             ? write_char(out, value, specs)
-             : write(out, static_cast<unsigned_type>(value), specs, loc);
+FMT_CONSTEXPR auto write(OutputIt out,
+                         Char value,
+                         const format_specs<Char>& specs,
+                         locale_ref location = {}) -> OutputIt {
+    // char is formatted as unsigned char for consistency across platforms.
+    using unsigned_type = conditional_t<std::is_same<Char, char>::value, unsigned char, unsigned>;
+    return check_char_specs(specs) ? write_char(out, value, specs)
+                                   : write(out, static_cast<unsigned_type>(value), specs, location);
 }
 
 // Data for write_int that doesn't depend on output iterator type. It is used to
@@ -2028,12 +2029,12 @@ template <typename Char> class digit_grouping {
   }
 
  public:
-  explicit digit_grouping(locale_ref loc, bool localized = true) {
-    if (!localized) return;
-    auto sep = thousands_sep<Char>(loc);
-    grouping_ = sep.grouping;
-    if (sep.thousands_sep) thousands_sep_.assign(1, sep.thousands_sep);
-  }
+     explicit digit_grouping(locale_ref location, bool localized = true) {
+         if (!localized) return;
+         auto sep = thousands_sep<Char>(location);
+         grouping_ = sep.grouping;
+         if (sep.thousands_sep) thousands_sep_.assign(1, sep.thousands_sep);
+     }
   digit_grouping(std::string grouping, std::basic_string<Char> sep)
       : grouping_(std::move(grouping)), thousands_sep_(std::move(sep)) {}
 
@@ -2135,8 +2136,10 @@ auto write_int(OutputIt out, UInt value, unsigned prefix,
 }
 
 // Writes a localized value.
-FMT_API auto write_loc(appender out, loc_value value,
-                       const format_specs<>& specs, locale_ref loc) -> bool;
+FMT_API auto write_loc(appender out,
+                       loc_value value,
+                       const format_specs<>& specs,
+                       locale_ref location) -> bool;
 template <typename OutputIt, typename Char>
 inline auto write_loc(OutputIt, loc_value, const format_specs<Char>&,
                       locale_ref) -> bool {
@@ -2242,32 +2245,36 @@ FMT_CONSTEXPR FMT_INLINE auto write_int(OutputIt out, write_int_arg<T> arg,
   return out;
 }
 template <typename Char, typename OutputIt, typename T>
-FMT_CONSTEXPR FMT_NOINLINE auto write_int_noinline(
-    OutputIt out, write_int_arg<T> arg, const format_specs<Char>& specs,
-    locale_ref loc) -> OutputIt {
-  return write_int(out, arg, specs, loc);
+FMT_CONSTEXPR FMT_NOINLINE auto write_int_noinline(OutputIt out,
+                                                   write_int_arg<T> arg,
+                                                   const format_specs<Char>& specs,
+                                                   locale_ref location) -> OutputIt {
+    return write_int(out, arg, specs, location);
 }
-template <typename Char, typename OutputIt, typename T,
-          FMT_ENABLE_IF(is_integral<T>::value &&
-                        !std::is_same<T, bool>::value &&
+template <typename Char,
+          typename OutputIt,
+          typename T,
+          FMT_ENABLE_IF(is_integral<T>::value && !std::is_same<T, bool>::value &&
                         std::is_same<OutputIt, buffer_appender<Char>>::value)>
-FMT_CONSTEXPR FMT_INLINE auto write(OutputIt out, T value,
+FMT_CONSTEXPR FMT_INLINE auto write(OutputIt out,
+                                    T value,
                                     const format_specs<Char>& specs,
-                                    locale_ref loc) -> OutputIt {
-  if (specs.localized && write_loc(out, value, specs, loc)) return out;
-  return write_int_noinline(out, make_write_int_arg(value, specs.sign), specs,
-                            loc);
+                                    locale_ref location) -> OutputIt {
+    if (specs.localized && write_loc(out, value, specs, location)) return out;
+    return write_int_noinline(out, make_write_int_arg(value, specs.sign), specs, location);
 }
 // An inlined version of write used in format string compilation.
-template <typename Char, typename OutputIt, typename T,
-          FMT_ENABLE_IF(is_integral<T>::value &&
-                        !std::is_same<T, bool>::value &&
+template <typename Char,
+          typename OutputIt,
+          typename T,
+          FMT_ENABLE_IF(is_integral<T>::value && !std::is_same<T, bool>::value &&
                         !std::is_same<OutputIt, buffer_appender<Char>>::value)>
-FMT_CONSTEXPR FMT_INLINE auto write(OutputIt out, T value,
+FMT_CONSTEXPR FMT_INLINE auto write(OutputIt out,
+                                    T value,
                                     const format_specs<Char>& specs,
-                                    locale_ref loc) -> OutputIt {
-  if (specs.localized && write_loc(out, value, specs, loc)) return out;
-  return write_int(out, make_write_int_arg(value, specs.sign), specs, loc);
+                                    locale_ref location) -> OutputIt {
+    if (specs.localized && write_loc(out, value, specs, location)) return out;
+    return write_int(out, make_write_int_arg(value, specs.sign), specs, location);
 }
 
 // An output iterator that counts the number of objects written to it and
@@ -2597,110 +2604,109 @@ FMT_CONSTEXPR20 auto write_significand(OutputIt out, T significand,
                                          buffer.end(), out);
 }
 
-template <typename OutputIt, typename DecimalFP, typename Char,
+template <typename OutputIt,
+          typename DecimalFP,
+          typename Char,
           typename Grouping = digit_grouping<Char>>
-FMT_CONSTEXPR20 auto do_write_float(OutputIt out, const DecimalFP& f,
+FMT_CONSTEXPR20 auto do_write_float(OutputIt out,
+                                    const DecimalFP& f,
                                     const format_specs<Char>& specs,
-                                    float_specs fspecs, locale_ref loc)
-    -> OutputIt {
-  auto significand = f.significand;
-  int significand_size = get_significand_size(f);
-  const Char zero = static_cast<Char>('0');
-  auto sign = fspecs.sign;
-  size_t size = to_unsigned(significand_size) + (sign ? 1 : 0);
-  using iterator = reserve_iterator<OutputIt>;
+                                    float_specs fspecs,
+                                    locale_ref location) -> OutputIt {
+    auto significand = f.significand;
+    int significand_size = get_significand_size(f);
+    const Char zero = static_cast<Char>('0');
+    auto sign = fspecs.sign;
+    size_t size = to_unsigned(significand_size) + (sign ? 1 : 0);
+    using iterator = reserve_iterator<OutputIt>;
 
-  Char decimal_point =
-      fspecs.locale ? detail::decimal_point<Char>(loc) : static_cast<Char>('.');
+    Char decimal_point =
+        fspecs.locale ? detail::decimal_point<Char>(location) : static_cast<Char>('.');
 
-  int output_exp = f.exponent + significand_size - 1;
-  auto use_exp_format = [=]() {
-    if (fspecs.format == float_format::exp) return true;
-    if (fspecs.format != float_format::general) return false;
-    // Use the fixed notation if the exponent is in [exp_lower, exp_upper),
-    // e.g. 0.0001 instead of 1e-04. Otherwise use the exponent notation.
-    const int exp_lower = -4, exp_upper = 16;
-    return output_exp < exp_lower ||
-           output_exp >= (fspecs.precision > 0 ? fspecs.precision : exp_upper);
-  };
-  if (use_exp_format()) {
-    int num_zeros = 0;
-    if (fspecs.showpoint) {
-      num_zeros = fspecs.precision - significand_size;
-      if (num_zeros < 0) num_zeros = 0;
-      size += to_unsigned(num_zeros);
-    } else if (significand_size == 1) {
-      decimal_point = Char();
-    }
-    auto abs_output_exp = output_exp >= 0 ? output_exp : -output_exp;
-    int exp_digits = 2;
-    if (abs_output_exp >= 100) exp_digits = abs_output_exp >= 1000 ? 4 : 3;
-
-    size += to_unsigned((decimal_point ? 1 : 0) + 2 + exp_digits);
-    char exp_char = fspecs.upper ? 'E' : 'e';
-    auto write = [=](iterator it) {
-      if (sign) *it++ = detail::sign<Char>(sign);
-      // Insert a decimal point after the first digit and add an exponent.
-      it = write_significand(it, significand, significand_size, 1,
-                             decimal_point);
-      if (num_zeros > 0) it = detail::fill_n(it, num_zeros, zero);
-      *it++ = static_cast<Char>(exp_char);
-      return write_exponent<Char>(output_exp, it);
+    int output_exp = f.exponent + significand_size - 1;
+    auto use_exp_format = [=]() {
+        if (fspecs.format == float_format::exp) return true;
+        if (fspecs.format != float_format::general) return false;
+        // Use the fixed notation if the exponent is in [exp_lower, exp_upper),
+        // e.g. 0.0001 instead of 1e-04. Otherwise use the exponent notation.
+        const int exp_lower = -4, exp_upper = 16;
+        return output_exp < exp_lower ||
+               output_exp >= (fspecs.precision > 0 ? fspecs.precision : exp_upper);
     };
-    return specs.width > 0 ? write_padded<align::right>(out, specs, size, write)
-                           : base_iterator(out, write(reserve(out, size)));
-  }
+    if (use_exp_format()) {
+        int num_zeros = 0;
+        if (fspecs.showpoint) {
+            num_zeros = fspecs.precision - significand_size;
+            if (num_zeros < 0) num_zeros = 0;
+            size += to_unsigned(num_zeros);
+        } else if (significand_size == 1) {
+            decimal_point = Char();
+        }
+        auto abs_output_exp = output_exp >= 0 ? output_exp : -output_exp;
+        int exp_digits = 2;
+        if (abs_output_exp >= 100) exp_digits = abs_output_exp >= 1000 ? 4 : 3;
 
-  int exp = f.exponent + significand_size;
-  if (f.exponent >= 0) {
-    // 1234e5 -> 123400000[.0+]
-    size += to_unsigned(f.exponent);
-    int num_zeros = fspecs.precision - exp;
-    abort_fuzzing_if(num_zeros > 5000);
-    if (fspecs.showpoint) {
-      ++size;
-      if (num_zeros <= 0 && fspecs.format != float_format::fixed) num_zeros = 0;
-      if (num_zeros > 0) size += to_unsigned(num_zeros);
+        size += to_unsigned((decimal_point ? 1 : 0) + 2 + exp_digits);
+        char exp_char = fspecs.upper ? 'E' : 'e';
+        auto write = [=](iterator it) {
+            if (sign) *it++ = detail::sign<Char>(sign);
+            // Insert a decimal point after the first digit and add an exponent.
+            it = write_significand(it, significand, significand_size, 1, decimal_point);
+            if (num_zeros > 0) it = detail::fill_n(it, num_zeros, zero);
+            *it++ = static_cast<Char>(exp_char);
+            return write_exponent<Char>(output_exp, it);
+        };
+        return specs.width > 0 ? write_padded<align::right>(out, specs, size, write)
+                               : base_iterator(out, write(reserve(out, size)));
     }
-    auto grouping = Grouping(loc, fspecs.locale);
-    size += to_unsigned(grouping.count_separators(exp));
+
+    int exp = f.exponent + significand_size;
+    if (f.exponent >= 0) {
+        // 1234e5 -> 123400000[.0+]
+        size += to_unsigned(f.exponent);
+        int num_zeros = fspecs.precision - exp;
+        abort_fuzzing_if(num_zeros > 5000);
+        if (fspecs.showpoint) {
+            ++size;
+            if (num_zeros <= 0 && fspecs.format != float_format::fixed) num_zeros = 0;
+            if (num_zeros > 0) size += to_unsigned(num_zeros);
+        }
+        auto grouping = Grouping(location, fspecs.locale);
+        size += to_unsigned(grouping.count_separators(exp));
+        return write_padded<align::right>(out, specs, size, [&](iterator it) {
+            if (sign) *it++ = detail::sign<Char>(sign);
+            it = write_significand<Char>(it, significand, significand_size, f.exponent, grouping);
+            if (!fspecs.showpoint) return it;
+            *it++ = decimal_point;
+            return num_zeros > 0 ? detail::fill_n(it, num_zeros, zero) : it;
+        });
+    } else if (exp > 0) {
+        // 1234e-2 -> 12.34[0+]
+        int num_zeros = fspecs.showpoint ? fspecs.precision - significand_size : 0;
+        size += 1 + to_unsigned(num_zeros > 0 ? num_zeros : 0);
+        auto grouping = Grouping(location, fspecs.locale);
+        size += to_unsigned(grouping.count_separators(exp));
+        return write_padded<align::right>(out, specs, size, [&](iterator it) {
+            if (sign) *it++ = detail::sign<Char>(sign);
+            it = write_significand(it, significand, significand_size, exp, decimal_point, grouping);
+            return num_zeros > 0 ? detail::fill_n(it, num_zeros, zero) : it;
+        });
+    }
+    // 1234e-6 -> 0.001234
+    int num_zeros = -exp;
+    if (significand_size == 0 && fspecs.precision >= 0 && fspecs.precision < num_zeros) {
+        num_zeros = fspecs.precision;
+    }
+    bool pointy = num_zeros != 0 || significand_size != 0 || fspecs.showpoint;
+    size += 1 + (pointy ? 1 : 0) + to_unsigned(num_zeros);
     return write_padded<align::right>(out, specs, size, [&](iterator it) {
-      if (sign) *it++ = detail::sign<Char>(sign);
-      it = write_significand<Char>(it, significand, significand_size,
-                                   f.exponent, grouping);
-      if (!fspecs.showpoint) return it;
-      *it++ = decimal_point;
-      return num_zeros > 0 ? detail::fill_n(it, num_zeros, zero) : it;
+        if (sign) *it++ = detail::sign<Char>(sign);
+        *it++ = zero;
+        if (!pointy) return it;
+        *it++ = decimal_point;
+        it = detail::fill_n(it, num_zeros, zero);
+        return write_significand<Char>(it, significand, significand_size);
     });
-  } else if (exp > 0) {
-    // 1234e-2 -> 12.34[0+]
-    int num_zeros = fspecs.showpoint ? fspecs.precision - significand_size : 0;
-    size += 1 + to_unsigned(num_zeros > 0 ? num_zeros : 0);
-    auto grouping = Grouping(loc, fspecs.locale);
-    size += to_unsigned(grouping.count_separators(exp));
-    return write_padded<align::right>(out, specs, size, [&](iterator it) {
-      if (sign) *it++ = detail::sign<Char>(sign);
-      it = write_significand(it, significand, significand_size, exp,
-                             decimal_point, grouping);
-      return num_zeros > 0 ? detail::fill_n(it, num_zeros, zero) : it;
-    });
-  }
-  // 1234e-6 -> 0.001234
-  int num_zeros = -exp;
-  if (significand_size == 0 && fspecs.precision >= 0 &&
-      fspecs.precision < num_zeros) {
-    num_zeros = fspecs.precision;
-  }
-  bool pointy = num_zeros != 0 || significand_size != 0 || fspecs.showpoint;
-  size += 1 + (pointy ? 1 : 0) + to_unsigned(num_zeros);
-  return write_padded<align::right>(out, specs, size, [&](iterator it) {
-    if (sign) *it++ = detail::sign<Char>(sign);
-    *it++ = zero;
-    if (!pointy) return it;
-    *it++ = decimal_point;
-    it = detail::fill_n(it, num_zeros, zero);
-    return write_significand<Char>(it, significand, significand_size);
-  });
 }
 
 template <typename Char> class fallback_digit_grouping {
@@ -2718,17 +2724,17 @@ template <typename Char> class fallback_digit_grouping {
 };
 
 template <typename OutputIt, typename DecimalFP, typename Char>
-FMT_CONSTEXPR20 auto write_float(OutputIt out, const DecimalFP& f,
+FMT_CONSTEXPR20 auto write_float(OutputIt out,
+                                 const DecimalFP& f,
                                  const format_specs<Char>& specs,
-                                 float_specs fspecs, locale_ref loc)
-    -> OutputIt {
-  if (is_constant_evaluated()) {
-    return do_write_float<OutputIt, DecimalFP, Char,
-                          fallback_digit_grouping<Char>>(out, f, specs, fspecs,
-                                                         loc);
-  } else {
-    return do_write_float(out, f, specs, fspecs, loc);
-  }
+                                 float_specs fspecs,
+                                 locale_ref location) -> OutputIt {
+    if (is_constant_evaluated()) {
+        return do_write_float<OutputIt, DecimalFP, Char, fallback_digit_grouping<Char>>(
+            out, f, specs, fspecs, location);
+    } else {
+        return do_write_float(out, f, specs, fspecs, location);
+    }
 }
 
 template <typename T> constexpr auto isnan(T value) -> bool {
@@ -3584,62 +3590,61 @@ FMT_CONSTEXPR20 auto format_float(Float value, int precision, float_specs specs,
   return exp;
 }
 template <typename Char, typename OutputIt, typename T>
-FMT_CONSTEXPR20 auto write_float(OutputIt out, T value,
-                                 format_specs<Char> specs, locale_ref loc)
-    -> OutputIt {
-  float_specs fspecs = parse_float_type_spec(specs);
-  fspecs.sign = specs.sign;
-  if (detail::signbit(value)) {  // value < 0 is false for NaN so use signbit.
-    fspecs.sign = sign::minus;
-    value = -value;
-  } else if (fspecs.sign == sign::minus) {
-    fspecs.sign = sign::none;
-  }
+FMT_CONSTEXPR20 auto write_float(OutputIt out,
+                                 T value,
+                                 format_specs<Char> specs,
+                                 locale_ref location) -> OutputIt {
+    float_specs fspecs = parse_float_type_spec(specs);
+    fspecs.sign = specs.sign;
+    if (detail::signbit(value)) {  // value < 0 is false for NaN so use signbit.
+        fspecs.sign = sign::minus;
+        value = -value;
+    } else if (fspecs.sign == sign::minus) {
+        fspecs.sign = sign::none;
+    }
 
-  if (!detail::isfinite(value))
-    return write_nonfinite(out, detail::isnan(value), specs, fspecs);
+    if (!detail::isfinite(value)) return write_nonfinite(out, detail::isnan(value), specs, fspecs);
 
-  if (specs.align == align::numeric && fspecs.sign) {
-    auto it = reserve(out, 1);
-    *it++ = detail::sign<Char>(fspecs.sign);
-    out = base_iterator(out, it);
-    fspecs.sign = sign::none;
-    if (specs.width != 0) --specs.width;
-  }
+    if (specs.align == align::numeric && fspecs.sign) {
+        auto it = reserve(out, 1);
+        *it++ = detail::sign<Char>(fspecs.sign);
+        out = base_iterator(out, it);
+        fspecs.sign = sign::none;
+        if (specs.width != 0) --specs.width;
+    }
 
-  memory_buffer buffer;
-  if (fspecs.format == float_format::hex) {
-    if (fspecs.sign) buffer.push_back(detail::sign<char>(fspecs.sign));
-    format_hexfloat(convert_float(value), specs.precision, fspecs, buffer);
-    return write_bytes<align::right>(out, {buffer.data(), buffer.size()},
-                                     specs);
-  }
-  int precision = specs.precision >= 0 || specs.type == presentation_type::none
-                      ? specs.precision
-                      : 6;
-  if (fspecs.format == float_format::exp) {
-    if (precision == max_value<int>())
-      throw_format_error("number is too big");
-    else
-      ++precision;
-  } else if (fspecs.format != float_format::fixed && precision == 0) {
-    precision = 1;
-  }
-  if (const_check(std::is_same<T, float>())) fspecs.binary32 = true;
-  int exp = format_float(convert_float(value), precision, fspecs, buffer);
-  fspecs.precision = precision;
-  auto f = big_decimal_fp{buffer.data(), static_cast<int>(buffer.size()), exp};
-  return write_float(out, f, specs, fspecs, loc);
+    memory_buffer buffer;
+    if (fspecs.format == float_format::hex) {
+        if (fspecs.sign) buffer.push_back(detail::sign<char>(fspecs.sign));
+        format_hexfloat(convert_float(value), specs.precision, fspecs, buffer);
+        return write_bytes<align::right>(out, {buffer.data(), buffer.size()}, specs);
+    }
+    int precision =
+        specs.precision >= 0 || specs.type == presentation_type::none ? specs.precision : 6;
+    if (fspecs.format == float_format::exp) {
+        if (precision == max_value<int>())
+            throw_format_error("number is too big");
+        else
+            ++precision;
+    } else if (fspecs.format != float_format::fixed && precision == 0) {
+        precision = 1;
+    }
+    if (const_check(std::is_same<T, float>())) fspecs.binary32 = true;
+    int exp = format_float(convert_float(value), precision, fspecs, buffer);
+    fspecs.precision = precision;
+    auto f = big_decimal_fp{buffer.data(), static_cast<int>(buffer.size()), exp};
+    return write_float(out, f, specs, fspecs, location);
 }
 
-template <typename Char, typename OutputIt, typename T,
-          FMT_ENABLE_IF(is_floating_point<T>::value)>
-FMT_CONSTEXPR20 auto write(OutputIt out, T value, format_specs<Char> specs,
-                           locale_ref loc = {}) -> OutputIt {
-  if (const_check(!is_supported_floating_point(value))) return out;
-  return specs.localized && write_loc(out, value, specs, loc)
-             ? out
-             : write_float(out, value, specs, loc);
+template <typename Char, typename OutputIt, typename T, FMT_ENABLE_IF(is_floating_point<T>::value)>
+FMT_CONSTEXPR20 auto write(OutputIt out,
+                           T value,
+                           format_specs<Char> specs,
+                           locale_ref location = {}) -> OutputIt {
+    if (const_check(!is_supported_floating_point(value))) return out;
+    return specs.localized && write_loc(out, value, specs, location)
+               ? out
+               : write_float(out, value, specs, location);
 }
 
 template <typename Char, typename OutputIt, typename T,
@@ -3770,14 +3775,14 @@ template <typename Char> struct default_arg_formatter {
 
   iterator out;
   basic_format_args<context> args;
-  locale_ref loc;
+  locale_ref location;
 
   template <typename T> auto operator()(T value) -> iterator {
     return write<Char>(out, value);
   }
   auto operator()(typename basic_format_arg<context>::handle h) -> iterator {
     basic_format_parse_context<Char> parse_ctx({});
-    context format_ctx(out, args, loc);
+    context format_ctx(out, args, location);
     h.format(parse_ctx, format_ctx);
     return format_ctx.out();
   }
@@ -3900,12 +3905,13 @@ template <typename Char> struct udl_arg {
 #endif  // FMT_USE_USER_DEFINED_LITERALS
 
 template <typename Locale, typename Char>
-auto vformat(const Locale& loc, basic_string_view<Char> fmt,
+auto vformat(const Locale& location,
+             basic_string_view<Char> fmt,
              basic_format_args<buffer_context<type_identity_t<Char>>> args)
     -> std::basic_string<Char> {
-  auto buf = basic_memory_buffer<Char>();
-  detail::vformat_to(buf, fmt, args, detail::locale_ref(loc));
-  return {buf.data(), buf.size()};
+    auto buf = basic_memory_buffer<Char>();
+    detail::vformat_to(buf, fmt, args, detail::locale_ref(location));
+    return {buf.data(), buf.size()};
 }
 
 using format_func = void (*)(detail::buffer<char>&, int, const char*);
@@ -4351,70 +4357,65 @@ FMT_END_EXPORT
 namespace detail {
 
 template <typename Char>
-void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
-                typename vformat_args<Char>::type args, locale_ref loc) {
-  auto out = buffer_appender<Char>(buf);
-  if (fmt.size() == 2 && equal2(fmt.data(), "{}")) {
-    auto arg = args.get(0);
-    if (!arg) throw_format_error("argument not found");
-    visit_format_arg(default_arg_formatter<Char>{out, args, loc}, arg);
-    return;
-  }
-
-  struct format_handler : error_handler {
-    basic_format_parse_context<Char> parse_context;
-    buffer_context<Char> context;
-
-    format_handler(buffer_appender<Char> p_out, basic_string_view<Char> str,
-                   basic_format_args<buffer_context<Char>> p_args,
-                   locale_ref p_loc)
-        : parse_context(str), context(p_out, p_args, p_loc) {}
-
-    void on_text(const Char* begin, const Char* end) {
-      auto text = basic_string_view<Char>(begin, to_unsigned(end - begin));
-      context.advance_to(write<Char>(context.out(), text));
+void vformat_to(buffer<Char>& buf,
+                basic_string_view<Char> fmt,
+                typename vformat_args<Char>::type args,
+                locale_ref location) {
+    auto out = buffer_appender<Char>(buf);
+    if (fmt.size() == 2 && equal2(fmt.data(), "{}")) {
+        auto arg = args.get(0);
+        if (!arg) throw_format_error("argument not found");
+        visit_format_arg(default_arg_formatter<Char>{out, args, location}, arg);
+        return;
     }
 
-    FMT_CONSTEXPR auto on_arg_id() -> int {
-      return parse_context.next_arg_id();
-    }
-    FMT_CONSTEXPR auto on_arg_id(int id) -> int {
-      return parse_context.check_arg_id(id), id;
-    }
-    FMT_CONSTEXPR auto on_arg_id(basic_string_view<Char> id) -> int {
-      int arg_id = context.arg_id(id);
-      if (arg_id < 0) throw_format_error("argument not found");
-      return arg_id;
-    }
+    struct format_handler : error_handler {
+        basic_format_parse_context<Char> parse_context;
+        buffer_context<Char> context;
 
-    FMT_INLINE void on_replacement_field(int id, const Char*) {
-      auto arg = get_arg(context, id);
-      context.advance_to(visit_format_arg(
-          default_arg_formatter<Char>{context.out(), context.args(),
-                                      context.locale()},
-          arg));
-    }
+        format_handler(buffer_appender<Char> p_out,
+                       basic_string_view<Char> str,
+                       basic_format_args<buffer_context<Char>> p_args,
+                       locale_ref p_loc)
+            : parse_context(str),
+              context(p_out, p_args, p_loc) {}
 
-    auto on_format_specs(int id, const Char* begin, const Char* end)
-        -> const Char* {
-      auto arg = get_arg(context, id);
-      // Not using a visitor for custom types gives better codegen.
-      if (arg.format_custom(begin, parse_context, context))
-        return parse_context.begin();
-      auto specs = detail::dynamic_format_specs<Char>();
-      begin = parse_format_specs(begin, end, specs, parse_context, arg.type());
-      detail::handle_dynamic_spec<detail::width_checker>(
-          specs.width, specs.width_ref, context);
-      detail::handle_dynamic_spec<detail::precision_checker>(
-          specs.precision, specs.precision_ref, context);
-      if (begin == end || *begin != '}')
-        throw_format_error("missing '}' in format string");
-      auto f = arg_formatter<Char>{context.out(), specs, context.locale()};
-      context.advance_to(visit_format_arg(f, arg));
-      return begin;
-    }
-  };
-  detail::parse_format_string<false>(fmt, format_handler(out, fmt, args, loc));
+        void on_text(const Char* begin, const Char* end) {
+            auto text = basic_string_view<Char>(begin, to_unsigned(end - begin));
+            context.advance_to(write<Char>(context.out(), text));
+        }
+
+        FMT_CONSTEXPR auto on_arg_id() -> int { return parse_context.next_arg_id(); }
+        FMT_CONSTEXPR auto on_arg_id(int id) -> int { return parse_context.check_arg_id(id), id; }
+        FMT_CONSTEXPR auto on_arg_id(basic_string_view<Char> id) -> int {
+            int arg_id = context.arg_id(id);
+            if (arg_id < 0) throw_format_error("argument not found");
+            return arg_id;
+        }
+
+        FMT_INLINE void on_replacement_field(int id, const Char*) {
+            auto arg = get_arg(context, id);
+            context.advance_to(visit_format_arg(
+                default_arg_formatter<Char>{context.out(), context.args(), context.locale()}, arg));
+        }
+
+        auto on_format_specs(int id, const Char* begin, const Char* end) -> const Char* {
+            auto arg = get_arg(context, id);
+            // Not using a visitor for custom types gives better codegen.
+            if (arg.format_custom(begin, parse_context, context)) return parse_context.begin();
+            auto specs = detail::dynamic_format_specs<Char>();
+            begin = parse_format_specs(begin, end, specs, parse_context, arg.type());
+            detail::handle_dynamic_spec<detail::width_checker>(specs.width, specs.width_ref,
+                                                               context);
+            detail::handle_dynamic_spec<detail::precision_checker>(specs.precision,
+                                                                   specs.precision_ref, context);
+            if (begin == end || *begin != '}') throw_format_error("missing '}' in format string");
+            auto f = arg_formatter<Char>{context.out(), specs, context.locale()};
+            context.advance_to(visit_format_arg(f, arg));
+            return begin;
+        }
+    };
+    detail::parse_format_string<false>(fmt, format_handler(out, fmt, args, location));
 }
 
 FMT_BEGIN_EXPORT
@@ -4459,46 +4460,47 @@ constexpr auto operator""_a(const char* s, size_t) -> detail::udl_arg<char> {
 #endif  // FMT_USE_USER_DEFINED_LITERALS
 
 template <typename Locale, FMT_ENABLE_IF(detail::is_locale<Locale>::value)>
-inline auto vformat(const Locale& loc, string_view fmt, format_args args)
-    -> std::string {
-  return detail::vformat(loc, fmt, args);
+inline auto vformat(const Locale& location, string_view fmt, format_args args) -> std::string {
+    return detail::vformat(location, fmt, args);
 }
 
-template <typename Locale, typename... T,
-          FMT_ENABLE_IF(detail::is_locale<Locale>::value)>
-inline auto format(const Locale& loc, format_string<T...> fmt, T&&... args)
-    -> std::string {
-  return fmt::vformat(loc, string_view(fmt), fmt::make_format_args(args...));
+template <typename Locale, typename... T, FMT_ENABLE_IF(detail::is_locale<Locale>::value)>
+inline auto format(const Locale& location, format_string<T...> fmt, T&&... args) -> std::string {
+    return fmt::vformat(location, string_view(fmt), fmt::make_format_args(args...));
 }
 
-template <typename OutputIt, typename Locale,
-          FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, char>::value&&
-                            detail::is_locale<Locale>::value)>
-auto vformat_to(OutputIt out, const Locale& loc, string_view fmt,
-                format_args args) -> OutputIt {
-  using detail::get_buffer;
-  auto&& buf = get_buffer<char>(out);
-  detail::vformat_to(buf, fmt, args, detail::locale_ref(loc));
-  return detail::get_iterator(buf, out);
+template <typename OutputIt,
+          typename Locale,
+          FMT_ENABLE_IF(
+              detail::is_output_iterator<OutputIt, char>::value&& detail::is_locale<Locale>::value)>
+auto vformat_to(OutputIt out, const Locale& location, string_view fmt, format_args args)
+    -> OutputIt {
+    using detail::get_buffer;
+    auto&& buf = get_buffer<char>(out);
+    detail::vformat_to(buf, fmt, args, detail::locale_ref(location));
+    return detail::get_iterator(buf, out);
 }
 
-template <typename OutputIt, typename Locale, typename... T,
-          FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, char>::value&&
-                            detail::is_locale<Locale>::value)>
-FMT_INLINE auto format_to(OutputIt out, const Locale& loc,
-                          format_string<T...> fmt, T&&... args) -> OutputIt {
-  return vformat_to(out, loc, fmt, fmt::make_format_args(args...));
+template <typename OutputIt,
+          typename Locale,
+          typename... T,
+          FMT_ENABLE_IF(
+              detail::is_output_iterator<OutputIt, char>::value&& detail::is_locale<Locale>::value)>
+FMT_INLINE auto format_to(OutputIt out,
+                          const Locale& location,
+                          format_string<T...> fmt,
+                          T&&... args) -> OutputIt {
+    return vformat_to(out, location, fmt, fmt::make_format_args(args...));
 }
 
-template <typename Locale, typename... T,
-          FMT_ENABLE_IF(detail::is_locale<Locale>::value)>
-FMT_NODISCARD FMT_INLINE auto formatted_size(const Locale& loc,
+template <typename Locale, typename... T, FMT_ENABLE_IF(detail::is_locale<Locale>::value)>
+FMT_NODISCARD FMT_INLINE auto formatted_size(const Locale& location,
                                              format_string<T...> fmt,
                                              T&&... args) -> size_t {
-  auto buf = detail::counting_buffer<>();
-  detail::vformat_to<char>(buf, fmt, fmt::make_format_args(args...),
-                           detail::locale_ref(loc));
-  return buf.count();
+    auto buf = detail::counting_buffer<>();
+    detail::vformat_to<char>(buf, fmt, fmt::make_format_args(args...),
+                             detail::locale_ref(location));
+    return buf.count();
 }
 
 FMT_END_EXPORT

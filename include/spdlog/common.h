@@ -312,9 +312,11 @@ private:
 [[noreturn]] SPDLOG_API void throw_spdlog_ex(const std::string &msg, int last_errno);
 [[noreturn]] SPDLOG_API void throw_spdlog_ex(std::string msg);
 
-struct source_loc {
-    SPDLOG_CONSTEXPR source_loc() = default;
-    SPDLOG_CONSTEXPR source_loc(const char *filename_in, int line_in, const char *funcname_in)
+struct log_source_location {
+    SPDLOG_CONSTEXPR log_source_location() = default;
+    SPDLOG_CONSTEXPR log_source_location(const char *filename_in,
+                                         int line_in,
+                                         const char *funcname_in)
         : filename{filename_in},
           line{line_in},
           funcname{funcname_in} {}

@@ -1556,7 +1556,8 @@ class locale_ref {
 
  public:
   constexpr FMT_INLINE locale_ref() : locale_(nullptr) {}
-  template <typename Locale> explicit locale_ref(const Locale& loc);
+  template <typename Locale>
+  explicit locale_ref(const Locale& location);
 
   explicit operator bool() const noexcept { return locale_ != nullptr; }
 
@@ -1759,9 +1760,12 @@ template <typename OutputIt, typename Char> class basic_format_context {
     Constructs a ``basic_format_context`` object. References to the arguments
     are stored in the object so make sure they have appropriate lifetimes.
    */
-  constexpr basic_format_context(OutputIt out, format_args ctx_args,
-                                 detail::locale_ref loc = {})
-      : out_(out), args_(ctx_args), loc_(loc) {}
+  constexpr basic_format_context(OutputIt out,
+                                 format_args ctx_args,
+                                 detail::locale_ref location = {})
+      : out_(out),
+        args_(ctx_args),
+        loc_(location) {}
 
   constexpr auto arg(int id) const -> format_arg { return args_.get(id); }
   FMT_CONSTEXPR auto arg(basic_string_view<Char> name) -> format_arg {
@@ -2718,8 +2722,10 @@ template <> struct vformat_args<char> {
 
 // Use vformat_args and avoid type_identity to keep symbols short.
 template <typename Char>
-void vformat_to(buffer<Char>& buf, basic_string_view<Char> fmt,
-                typename vformat_args<Char>::type args, locale_ref loc = {});
+void vformat_to(buffer<Char>& buf,
+                basic_string_view<Char> fmt,
+                typename vformat_args<Char>::type args,
+                locale_ref location = {});
 
 FMT_API void vprint_mojibake(std::FILE*, string_view, format_args);
 #ifndef _WIN32

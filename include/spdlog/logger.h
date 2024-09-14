@@ -76,54 +76,57 @@ public:
     void swap(spdlog::logger &other) SPDLOG_NOEXCEPT;
 
     template <typename... Args>
-    void log(source_loc loc, level::level_enum lvl, format_string_t<Args...> fmt, Args &&...args) {
-        log_(loc, lvl, details::to_string_view(fmt), std::forward<Args>(args)...);
+    void log(log_source_location location,
+             level::level_enum level,
+             format_string_t<Args...> fmt,
+             Args &&...args) {
+        log_(location, level, details::to_string_view(fmt), std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    void log(level::level_enum lvl, format_string_t<Args...> fmt, Args &&...args) {
-        log(source_loc{}, lvl, fmt, std::forward<Args>(args)...);
+    void log(level::level_enum level, format_string_t<Args...> fmt, Args &&...args) {
+        log(log_source_location{}, level, fmt, std::forward<Args>(args)...);
     }
 
     template <typename T>
-    void log(level::level_enum lvl, const T &msg) {
-        log(source_loc{}, lvl, msg);
+    void log(level::level_enum level, const T &msg) {
+        log(log_source_location{}, level, msg);
     }
 
     // T cannot be statically converted to format string (including string_view/wstring_view)
     template <class T,
               typename std::enable_if<!is_convertible_to_any_format_string<const T &>::value,
                                       int>::type = 0>
-    void log(source_loc loc, level::level_enum lvl, const T &msg) {
-        log(loc, lvl, "{}", msg);
+    void log(log_source_location location, level::level_enum level, const T &msg) {
+        log(location, level, "{}", msg);
     }
 
     void log(log_clock::time_point log_time,
-             source_loc loc,
-             level::level_enum lvl,
+             log_source_location location,
+             level::level_enum level,
              string_view_t msg) {
-        bool log_enabled = should_log(lvl);
+        bool log_enabled = should_log(level);
         bool traceback_enabled = tracer_.enabled();
         if (!log_enabled && !traceback_enabled) {
             return;
         }
 
-        details::log_msg log_msg(log_time, loc, name_, lvl, msg);
+        details::log_msg log_msg(log_time, location, name_, level, msg);
         log_it_(log_msg, log_enabled, traceback_enabled);
     }
 
-    void log(source_loc loc, level::level_enum lvl, string_view_t msg) {
-        bool log_enabled = should_log(lvl);
+    void log(log_source_location location, level::level_enum level, string_view_t msg) {
+        bool log_enabled = should_log(level);
         bool traceback_enabled = tracer_.enabled();
         if (!log_enabled && !traceback_enabled) {
             return;
         }
 
-        details::log_msg log_msg(loc, name_, lvl, msg);
+        details::log_msg log_msg(location, name_, level, msg);
         log_it_(log_msg, log_enabled, traceback_enabled);
     }
 
-    void log(level::level_enum lvl, string_view_t msg) { log(source_loc{}, lvl, msg); }
+    void log(level::level_enum level, string_view_t msg) { log(log_source_location{}, level, msg); }
 
     template <typename... Args>
     void trace(format_string_t<Args...> fmt, Args &&...args) {
@@ -157,20 +160,23 @@ public:
 
 #ifdef SPDLOG_WCHAR_TO_UTF8_SUPPORT
     template <typename... Args>
-    void log(source_loc loc, level::level_enum lvl, wformat_string_t<Args...> fmt, Args &&...args) {
-        log_(loc, lvl, details::to_string_view(fmt), std::forward<Args>(args)...);
+    void log(log_source_location location,
+             level::level_enum level,
+             wformat_string_t<Args...> fmt,
+             Args &&...args) {
+        log_(location, level, details::to_string_view(fmt), std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    void log(level::level_enum lvl, wformat_string_t<Args...> fmt, Args &&...args) {
-        log(source_loc{}, lvl, fmt, std::forward<Args>(args)...);
+    void log(level::level_enum level, wformat_string_t<Args...> fmt, Args &&...args) {
+        log(log_source_location{}, level, fmt, std::forward<Args>(args)...);
     }
 
     void log(log_clock::time_point log_time,
-             source_loc loc,
-             level::level_enum lvl,
+             log_source_location location,
+             level::level_enum level,
              wstring_view_t msg) {
-        bool log_enabled = should_log(lvl);
+        bool log_enabled = should_log(level);
         bool traceback_enabled = tracer_.enabled();
         if (!log_enabled && !traceback_enabled) {
             return;
@@ -178,12 +184,13 @@ public:
 
         memory_buf_t buf;
         details::os::wstr_to_utf8buf(wstring_view_t(msg.data(), msg.size()), buf);
-        details::log_msg log_msg(log_time, loc, name_, lvl, string_view_t(buf.data(), buf.size()));
+        details::log_msg log_msg(log_time, location, name_, level,
+                                 string_view_t(buf.data(), buf.size()));
         log_it_(log_msg, log_enabled, traceback_enabled);
     }
 
-    void log(source_loc loc, level::level_enum lvl, wstring_view_t msg) {
-        bool log_enabled = should_log(lvl);
+    void log(log_source_location location, level::level_enum level, wstring_view_t msg) {
+        bool log_enabled = should_log(level);
         bool traceback_enabled = tracer_.enabled();
         if (!log_enabled && !traceback_enabled) {
             return;
@@ -191,11 +198,13 @@ public:
 
         memory_buf_t buf;
         details::os::wstr_to_utf8buf(wstring_view_t(msg.data(), msg.size()), buf);
-        details::log_msg log_msg(loc, name_, lvl, string_view_t(buf.data(), buf.size()));
+        details::log_msg log_msg(location, name_, level, string_view_t(buf.data(), buf.size()));
         log_it_(log_msg, log_enabled, traceback_enabled);
     }
 
-    void log(level::level_enum lvl, wstring_view_t msg) { log(source_loc{}, lvl, msg); }
+    void log(level::level_enum level, wstring_view_t msg) {
+        log(log_source_location{}, level, msg);
+    }
 
     template <typename... Args>
     void trace(wformat_string_t<Args...> fmt, Args &&...args) {
@@ -314,8 +323,11 @@ protected:
 
     // common implementation for after templated public api has been resolved
     template <typename... Args>
-    void log_(source_loc loc, level::level_enum lvl, string_view_t fmt, Args &&...args) {
-        bool log_enabled = should_log(lvl);
+    void log_(log_source_location location,
+              level::level_enum level,
+              string_view_t fmt,
+              Args &&...args) {
+        bool log_enabled = should_log(level);
         bool traceback_enabled = tracer_.enabled();
         if (!log_enabled && !traceback_enabled) {
             return;
@@ -328,16 +340,19 @@ protected:
             fmt::vformat_to(fmt::appender(buf), fmt, fmt::make_format_args(args...));
 #endif
 
-            details::log_msg log_msg(loc, name_, lvl, string_view_t(buf.data(), buf.size()));
+            details::log_msg log_msg(location, name_, level, string_view_t(buf.data(), buf.size()));
             log_it_(log_msg, log_enabled, traceback_enabled);
         }
-        SPDLOG_LOGGER_CATCH(loc)
+        SPDLOG_LOGGER_CATCH(location)
     }
 
 #ifdef SPDLOG_WCHAR_TO_UTF8_SUPPORT
     template <typename... Args>
-    void log_(source_loc loc, level::level_enum lvl, wstring_view_t fmt, Args &&...args) {
-        bool log_enabled = should_log(lvl);
+    void log_(log_source_location location,
+              level::level_enum level,
+              wstring_view_t fmt,
+              Args &&...args) {
+        bool log_enabled = should_log(level);
         bool traceback_enabled = tracer_.enabled();
         if (!log_enabled && !traceback_enabled) {
             return;
@@ -350,10 +365,10 @@ protected:
 
             memory_buf_t buf;
             details::os::wstr_to_utf8buf(wstring_view_t(wbuf.data(), wbuf.size()), buf);
-            details::log_msg log_msg(loc, name_, lvl, string_view_t(buf.data(), buf.size()));
+            details::log_msg log_msg(location, name_, level, string_view_t(buf.data(), buf.size()));
             log_it_(log_msg, log_enabled, traceback_enabled);
         }
-        SPDLOG_LOGGER_CATCH(loc)
+        SPDLOG_LOGGER_CATCH(location)
     }
 #endif  // SPDLOG_WCHAR_TO_UTF8_SUPPORT
 

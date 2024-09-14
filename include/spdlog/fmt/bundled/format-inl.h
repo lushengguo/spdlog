@@ -81,8 +81,9 @@ inline void fwrite_fully(const void* ptr, size_t count, FILE* stream) {
 
 #ifndef FMT_STATIC_THOUSANDS_SEPARATOR
 template <typename Locale>
-locale_ref::locale_ref(const Locale& loc) : locale_(&loc) {
-  static_assert(std::is_same<Locale, std::locale>::value, "");
+locale_ref::locale_ref(const Locale& location)
+    : locale_(&location) {
+    static_assert(std::is_same<Locale, std::locale>::value, "");
 }
 
 template <typename Locale> auto locale_ref::get() const -> Locale {
@@ -91,16 +92,15 @@ template <typename Locale> auto locale_ref::get() const -> Locale {
 }
 
 template <typename Char>
-FMT_FUNC auto thousands_sep_impl(locale_ref loc) -> thousands_sep_result<Char> {
-  auto& facet = std::use_facet<std::numpunct<Char>>(loc.get<std::locale>());
-  auto grouping = facet.grouping();
-  auto thousands_sep = grouping.empty() ? Char() : facet.thousands_sep();
-  return {std::move(grouping), thousands_sep};
+FMT_FUNC auto thousands_sep_impl(locale_ref location) -> thousands_sep_result<Char> {
+    auto& facet = std::use_facet<std::numpunct<Char>>(location.get<std::locale>());
+    auto grouping = facet.grouping();
+    auto thousands_sep = grouping.empty() ? Char() : facet.thousands_sep();
+    return {std::move(grouping), thousands_sep};
 }
 template <typename Char>
-FMT_FUNC auto decimal_point_impl(locale_ref loc) -> Char {
-  return std::use_facet<std::numpunct<Char>>(loc.get<std::locale>())
-      .decimal_point();
+FMT_FUNC auto decimal_point_impl(locale_ref location) -> Char {
+    return std::use_facet<std::numpunct<Char>>(location.get<std::locale>()).decimal_point();
 }
 #else
 template <typename Char>
@@ -112,16 +112,17 @@ template <typename Char> FMT_FUNC Char decimal_point_impl(locale_ref) {
 }
 #endif
 
-FMT_FUNC auto write_loc(appender out, loc_value value,
-                        const format_specs<>& specs, locale_ref loc) -> bool {
+FMT_FUNC auto write_loc(appender out,
+                        loc_value value,
+                        const format_specs<>& specs,
+                        locale_ref location) -> bool {
 #ifndef FMT_STATIC_THOUSANDS_SEPARATOR
-  auto locale = loc.get<std::locale>();
-  // We cannot use the num_put<char> facet because it may produce output in
-  // a wrong encoding.
-  using facet = format_facet<std::locale>;
-  if (std::has_facet<facet>(locale))
-    return std::use_facet<facet>(locale).put(out, value, specs);
-  return facet(locale).put(out, value, specs);
+    auto locale = location.get<std::locale>();
+    // We cannot use the num_put<char> facet because it may produce output in
+    // a wrong encoding.
+    using facet = format_facet<std::locale>;
+    if (std::has_facet<facet>(locale)) return std::use_facet<facet>(locale).put(out, value, specs);
+    return facet(locale).put(out, value, specs);
 #endif
   return false;
 }
@@ -130,10 +131,11 @@ FMT_FUNC auto write_loc(appender out, loc_value value,
 template <typename Locale> typename Locale::id format_facet<Locale>::id;
 
 #ifndef FMT_STATIC_THOUSANDS_SEPARATOR
-template <typename Locale> format_facet<Locale>::format_facet(Locale& loc) {
-  auto& numpunct = std::use_facet<std::numpunct<char>>(loc);
-  grouping_ = numpunct.grouping();
-  if (!grouping_.empty()) separator_ = std::string(1, numpunct.thousands_sep());
+template <typename Locale>
+format_facet<Locale>::format_facet(Locale& location) {
+    auto& numpunct = std::use_facet<std::numpunct<char>>(location);
+    grouping_ = numpunct.grouping();
+    if (!grouping_.empty()) separator_ = std::string(1, numpunct.thousands_sep());
 }
 
 template <>

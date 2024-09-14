@@ -23,15 +23,15 @@ template <typename T>
 using is_exotic_char = bool_constant<!std::is_same<T, char>::value>;
 
 inline auto write_loc(std::back_insert_iterator<detail::buffer<wchar_t>> out,
-                      loc_value value, const format_specs<wchar_t>& specs,
-                      locale_ref loc) -> bool {
+                      loc_value value,
+                      const format_specs<wchar_t>& specs,
+                      locale_ref location) -> bool {
 #ifndef FMT_STATIC_THOUSANDS_SEPARATOR
-  auto& numpunct =
-      std::use_facet<std::numpunct<wchar_t>>(loc.get<std::locale>());
-  auto separator = std::wstring();
-  auto grouping = numpunct.grouping();
-  if (!grouping.empty()) separator = std::wstring(1, numpunct.thousands_sep());
-  return value.visit(loc_writer<wchar_t>{out, specs, separator, grouping, {}});
+    auto& numpunct = std::use_facet<std::numpunct<wchar_t>>(location.get<std::locale>());
+    auto separator = std::wstring();
+    auto grouping = numpunct.grouping();
+    if (!grouping.empty()) separator = std::wstring(1, numpunct.thousands_sep());
+    return value.visit(loc_writer<wchar_t>{out, specs, separator, grouping, {}});
 #endif
   return false;
 }
@@ -120,23 +120,26 @@ auto format(const S& format_str, T&&... args) -> std::basic_string<Char> {
                  fmt::make_format_args<buffer_context<Char>>(args...));
 }
 
-template <typename Locale, typename S, typename Char = char_t<S>,
-          FMT_ENABLE_IF(detail::is_locale<Locale>::value&&
-                            detail::is_exotic_char<Char>::value)>
-inline auto vformat(
-    const Locale& loc, const S& format_str,
-    basic_format_args<buffer_context<type_identity_t<Char>>> args)
+template <typename Locale,
+          typename S,
+          typename Char = char_t<S>,
+          FMT_ENABLE_IF(detail::is_locale<Locale>::value&& detail::is_exotic_char<Char>::value)>
+inline auto vformat(const Locale& location,
+                    const S& format_str,
+                    basic_format_args<buffer_context<type_identity_t<Char>>> args)
     -> std::basic_string<Char> {
-  return detail::vformat(loc, detail::to_string_view(format_str), args);
+    return detail::vformat(location, detail::to_string_view(format_str), args);
 }
 
-template <typename Locale, typename S, typename... T, typename Char = char_t<S>,
-          FMT_ENABLE_IF(detail::is_locale<Locale>::value&&
-                            detail::is_exotic_char<Char>::value)>
-inline auto format(const Locale& loc, const S& format_str, T&&... args)
+template <typename Locale,
+          typename S,
+          typename... T,
+          typename Char = char_t<S>,
+          FMT_ENABLE_IF(detail::is_locale<Locale>::value&& detail::is_exotic_char<Char>::value)>
+inline auto format(const Locale& location, const S& format_str, T&&... args)
     -> std::basic_string<Char> {
-  return detail::vformat(loc, detail::to_string_view(format_str),
-                         fmt::make_format_args<buffer_context<Char>>(args...));
+    return detail::vformat(location, detail::to_string_view(format_str),
+                           fmt::make_format_args<buffer_context<Char>>(args...));
 }
 
 template <typename OutputIt, typename S, typename Char = char_t<S>,
@@ -159,30 +162,33 @@ inline auto format_to(OutputIt out, const S& fmt, T&&... args) -> OutputIt {
                     fmt::make_format_args<buffer_context<Char>>(args...));
 }
 
-template <typename Locale, typename S, typename OutputIt, typename... Args,
+template <typename Locale,
+          typename S,
+          typename OutputIt,
+          typename... Args,
           typename Char = char_t<S>,
           FMT_ENABLE_IF(detail::is_output_iterator<OutputIt, Char>::value&&
-                            detail::is_locale<Locale>::value&&
-                                detail::is_exotic_char<Char>::value)>
-inline auto vformat_to(
-    OutputIt out, const Locale& loc, const S& format_str,
-    basic_format_args<buffer_context<type_identity_t<Char>>> args) -> OutputIt {
-  auto&& buf = detail::get_buffer<Char>(out);
-  vformat_to(buf, detail::to_string_view(format_str), args,
-             detail::locale_ref(loc));
-  return detail::get_iterator(buf, out);
+                            detail::is_locale<Locale>::value&& detail::is_exotic_char<Char>::value)>
+inline auto vformat_to(OutputIt out,
+                       const Locale& location,
+                       const S& format_str,
+                       basic_format_args<buffer_context<type_identity_t<Char>>> args) -> OutputIt {
+    auto&& buf = detail::get_buffer<Char>(out);
+    vformat_to(buf, detail::to_string_view(format_str), args, detail::locale_ref(location));
+    return detail::get_iterator(buf, out);
 }
 
-template <typename OutputIt, typename Locale, typename S, typename... T,
+template <typename OutputIt,
+          typename Locale,
+          typename S,
+          typename... T,
           typename Char = char_t<S>,
-          bool enable = detail::is_output_iterator<OutputIt, Char>::value &&
-                        detail::is_locale<Locale>::value &&
-                        detail::is_exotic_char<Char>::value>
-inline auto format_to(OutputIt out, const Locale& loc, const S& format_str,
-                      T&&... args) ->
+          bool enable = detail::is_output_iterator<OutputIt, Char>::value&&
+              detail::is_locale<Locale>::value&& detail::is_exotic_char<Char>::value>
+inline auto format_to(OutputIt out, const Locale& location, const S& format_str, T&&... args) ->
     typename std::enable_if<enable, OutputIt>::type {
-  return vformat_to(out, loc, detail::to_string_view(format_str),
-                    fmt::make_format_args<buffer_context<Char>>(args...));
+    return vformat_to(out, location, detail::to_string_view(format_str),
+                      fmt::make_format_args<buffer_context<Char>>(args...));
 }
 
 template <typename OutputIt, typename Char, typename... Args,

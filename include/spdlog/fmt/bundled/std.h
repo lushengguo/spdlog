@@ -251,17 +251,17 @@ template <> struct formatter<std::source_location> {
   }
 
   template <typename FormatContext>
-  auto format(const std::source_location& loc, FormatContext& ctx) const
+  auto format(const std::source_location& location, FormatContext& ctx) const
       -> decltype(ctx.out()) {
-    auto out = ctx.out();
-    out = detail::write(out, loc.file_name());
-    out = detail::write(out, ':');
-    out = detail::write<char>(out, loc.line());
-    out = detail::write(out, ':');
-    out = detail::write<char>(out, loc.column());
-    out = detail::write(out, ": ");
-    out = detail::write(out, loc.function_name());
-    return out;
+      auto out = ctx.out();
+      out = detail::write(out, location.file_name());
+      out = detail::write(out, ':');
+      out = detail::write<char>(out, location.line());
+      out = detail::write(out, ':');
+      out = detail::write<char>(out, location.column());
+      out = detail::write(out, ": ");
+      out = detail::write(out, location.function_name());
+      return out;
   }
 };
 FMT_END_NAMESPACE

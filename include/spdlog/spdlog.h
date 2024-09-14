@@ -75,7 +75,7 @@ SPDLOG_API level::level_enum get_level();
 SPDLOG_API void set_level(level::level_enum log_level);
 
 // Determine whether the default logger should log messages with a certain level
-SPDLOG_API bool should_log(level::level_enum lvl);
+SPDLOG_API bool should_log(level::level_enum level);
 
 // Set global flush level
 SPDLOG_API void flush_on(level::level_enum log_level);
@@ -141,16 +141,16 @@ SPDLOG_API void set_default_logger(std::shared_ptr<spdlog::logger> default_logge
 SPDLOG_API void apply_logger_env_levels(std::shared_ptr<logger> logger);
 
 template <typename... Args>
-inline void log(source_loc source,
-                level::level_enum lvl,
+inline void log(log_source_location source,
+                level::level_enum level,
                 format_string_t<Args...> fmt,
                 Args &&...args) {
-    default_logger_raw()->log(source, lvl, fmt, std::forward<Args>(args)...);
+    default_logger_raw()->log(source, level, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-inline void log(level::level_enum lvl, format_string_t<Args...> fmt, Args &&...args) {
-    default_logger_raw()->log(source_loc{}, lvl, fmt, std::forward<Args>(args)...);
+inline void log(level::level_enum level, format_string_t<Args...> fmt, Args &&...args) {
+    default_logger_raw()->log(log_source_location{}, level, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
@@ -184,27 +184,27 @@ inline void critical(format_string_t<Args...> fmt, Args &&...args) {
 }
 
 template <typename T>
-inline void log(source_loc source, level::level_enum lvl, const T &msg) {
-    default_logger_raw()->log(source, lvl, msg);
+inline void log(log_source_location source, level::level_enum level, const T &msg) {
+    default_logger_raw()->log(source, level, msg);
 }
 
 template <typename T>
-inline void log(level::level_enum lvl, const T &msg) {
-    default_logger_raw()->log(lvl, msg);
+inline void log(level::level_enum level, const T &msg) {
+    default_logger_raw()->log(level, msg);
 }
 
 #ifdef SPDLOG_WCHAR_TO_UTF8_SUPPORT
 template <typename... Args>
-inline void log(source_loc source,
-                level::level_enum lvl,
+inline void log(log_source_location source,
+                level::level_enum level,
                 wformat_string_t<Args...> fmt,
                 Args &&...args) {
-    default_logger_raw()->log(source, lvl, fmt, std::forward<Args>(args)...);
+    default_logger_raw()->log(source, level, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-inline void log(level::level_enum lvl, wformat_string_t<Args...> fmt, Args &&...args) {
-    default_logger_raw()->log(source_loc{}, lvl, fmt, std::forward<Args>(args)...);
+inline void log(level::level_enum level, wformat_string_t<Args...> fmt, Args &&...args) {
+    default_logger_raw()->log(log_source_location{}, level, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
@@ -284,11 +284,12 @@ inline void critical(const T &msg) {
 //
 
 #ifndef SPDLOG_NO_SOURCE_LOC
-    #define SPDLOG_LOGGER_CALL(logger, level, ...) \
-        (logger)->log(spdlog::source_loc{__FILE__, __LINE__, SPDLOG_FUNCTION}, level, __VA_ARGS__)
+    #define SPDLOG_LOGGER_CALL(logger, level, ...)                                             \
+        (logger)->log(spdlog::log_source_location{__FILE__, __LINE__, SPDLOG_FUNCTION}, level, \
+                      __VA_ARGS__)
 #else
     #define SPDLOG_LOGGER_CALL(logger, level, ...) \
-        (logger)->log(spdlog::source_loc{}, level, __VA_ARGS__)
+        (logger)->log(spdlog::log_source_location{}, level, __VA_ARGS__)
 #endif
 
 #if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_TRACE

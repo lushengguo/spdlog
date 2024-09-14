@@ -53,7 +53,7 @@ std::future<void> future = pool_ptr->post_flush(shared_from_this(), overflow_pol
 // This might throw exception if the flush message get dropped because of overflow.
 future.get();
 }
-SPDLOG_LOGGER_CATCH(source_loc())
+SPDLOG_LOGGER_CATCH(log_source_location())
 }
 
 //
@@ -75,7 +75,7 @@ SPDLOG_INLINE void spdlog::async_logger::backend_sink_it_(const details::log_msg
 SPDLOG_INLINE void spdlog::async_logger::backend_flush_() {
     for (auto &sink : sinks_) {
         SPDLOG_TRY { sink->flush(); }
-        SPDLOG_LOGGER_CATCH(source_loc())
+        SPDLOG_LOGGER_CATCH(log_source_location())
     }
 }
 

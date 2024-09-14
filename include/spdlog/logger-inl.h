@@ -148,7 +148,7 @@ SPDLOG_INLINE void logger::sink_it_(const details::log_msg &msg) {
 SPDLOG_INLINE void logger::flush_() {
     for (auto &sink : sinks_) {
         SPDLOG_TRY { sink->flush(); }
-        SPDLOG_LOGGER_CATCH(source_loc())
+        SPDLOG_LOGGER_CATCH(log_source_location())
     }
 }
 
